@@ -1,0 +1,43 @@
+type UserAvatar {
+    large:  String
+    medium: String
+}
+
+type User {
+    name: String!
+    email: String!
+    about:       String
+    avatar:      UserAvatar
+    bannerImage: String
+    createdAt:   Time!
+    updatedAt:   Time!
+}
+
+input RegisterInput {
+name: String!
+email: String!
+password: String!
+}
+
+input LoginInput {
+    email: String!
+    password: String!
+}
+
+input UserAvatarInput {
+    large:  String
+    medium: String
+}
+
+
+extend type Mutation {
+    login(loginInput: LoginInput!): User!
+    register(registerInput: RegisterInput!): User!
+    updateEmail(newEmail: String!): User!
+    updatePassword(oldPassword: String!, newPassword: String!): User!
+    updateAvatar(newAvatar: UserAvatarInput!): User!
+    updateBannerImage(newBannerImage: String!): User!
+    updateAbout(newAbout: String!): User!
+}
+
+

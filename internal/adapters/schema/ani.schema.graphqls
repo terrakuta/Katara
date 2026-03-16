@@ -1,0 +1,139 @@
+scalar Time
+
+enum MediaFormat {
+	TV
+	TV_SHORT
+	MOVIE
+	SPECIAL
+	OVA
+	ONA
+	MUSIC
+	MANGA
+	NOVEL
+	ONE_SHOT
+}
+
+enum MediaStatus {
+	FINISHED
+	RELEASING
+	NOT_YET_RELEASED
+	CANCELLED
+	HIATUS
+}
+
+enum MediaSeason {
+	WINTER
+	SPRING
+	SUMMER
+	FALL
+}
+
+enum MediaSort {
+	TITLE_ROMAJI
+	TITLE_ROMAJI_DESC
+	TITLE_ENGLISH
+	TITLE_ENGLISH_DESC
+	TITLE_NATIVE
+	TITLE_NATIVE_DESC
+	FORMAT
+	FORMAT_DESC
+	START_DATE
+	START_DATE_DESC
+	END_DATE
+	END_DATE_DESC
+	SCORE
+	SCORE_DESC
+	POPULARITY
+	POPULARITY_DESC
+	TRENDING
+	TRENDING_DESC
+	EPISODES
+	EPISODES_DESC
+	DURATION
+	DURATION_DESC
+	STATUS
+	STATUS_DESC
+	UPDATED_AT
+	UPDATED_AT_DESC
+	SEARCH_MATCH
+}
+
+type MediaTitle {
+	romaji: String!
+	english: String!
+	native: String!
+	userPreferred: String!
+}
+
+type MediaCoverImage {
+	extraLarge: String!
+	large: String!
+	medium: String!
+	color: String!
+}
+
+type MediaTrailer {
+	id: String!
+	site: String!
+	thumbnail: String!
+}
+
+type Mediatag {
+	id: Int!
+	name: String!
+	description: String!
+	category: String!
+	rank: Int!
+	isGeneralSpoiler: Boolean!
+	isMediaSpoiler: Boolean!
+	isAdult: Boolean!
+	userID: Int!
+}
+
+type Studio {
+	id: String!
+	name: String!
+}
+
+type Anime {
+	aniListID: Int!
+	mongoID: String!
+	title: MediaTitle
+	coverImage: MediaCoverImage
+	format: MediaFormat
+	status: MediaStatus
+	episodes: Int
+	genres: [String!]
+	averageScore: Int
+	popularity: Int
+	trending: Int
+	description: String
+	trailer: MediaTrailer
+	studios: [Studio!]
+	season: MediaSeason
+	seasonYear: Int
+	seasonInt: Int
+	tags: [Mediatag!]
+	syncedAt: Time
+}
+
+
+input AnimeFilter {
+	AnilistID: Int
+	Sort:      MediaSort
+	Status:    MediaStatus
+	Season:    MediaSeason
+	Format:    MediaFormat
+	Genre:     [String]
+	Year:      Int
+	Page:      Int
+	PerPage:   Int
+}
+type Query {
+	getAnimeByID(aniListID: Int!): Anime!
+    getAnimeWithFilters(animeFilter: AnimeFilter!): [Anime!]!
+}
+
+type Mutation {
+	ping: Boolean
+}

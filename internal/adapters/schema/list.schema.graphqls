@@ -1,0 +1,62 @@
+input FuzzyDateInput {
+    year:  Int!
+    month: Int!
+    day:   Int!
+}
+
+type FuzzyDate {
+    year:  Int!
+    month: Int!
+    day:   Int!
+}
+
+enum MediaListStatus {
+    CURRENT
+    PLANNING
+    COMPLETED
+    DROPPED
+    PAUSED
+    REPEATING
+}
+
+type List {
+    aniListID:   Int,
+    mongoID:     String
+    status:      MediaListStatus
+    score:       Float
+    progress:    Int
+    repeat:      Int
+    priority:   Int
+    private:    Boolean!
+    notes:       String
+    startedAt:   FuzzyDate
+    finishedAt:  FuzzyDate
+    createdAt:   Time
+    updatedAt:   Time
+}
+
+input AddListInput {
+    anilistID: Int!
+    mediaListStatus: MediaListStatus!
+    score: Float
+    progress: Int
+    repeat: Int
+    private: Boolean
+    notes: String
+    startedAt: FuzzyDateInput
+    finishedAT: FuzzyDateInput
+}
+
+
+
+extend type Mutation {
+    addList(input: AddListInput!): Boolean!
+    updateList(list: AddListInput): Boolean!
+    deleteList(anilistID: Int): Boolean!
+
+}
+
+extend type Query {
+    getAllLists(mediaListStatus: [MediaListStatus]): [List]
+    getListByStatus(mediaListStatus: MediaListStatus): [List]
+}
