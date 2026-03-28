@@ -66,9 +66,7 @@ type ComplexityRoot struct {
 
 	List struct {
 		AniListID  func(childComplexity int) int
-		CreatedAt  func(childComplexity int) int
 		FinishedAt func(childComplexity int) int
-		MongoID    func(childComplexity int) int
 		Notes      func(childComplexity int) int
 		Priority   func(childComplexity int) int
 		Private    func(childComplexity int) int
@@ -77,7 +75,11 @@ type ComplexityRoot struct {
 		Score      func(childComplexity int) int
 		StartedAt  func(childComplexity int) int
 		Status     func(childComplexity int) int
-		UpdatedAt  func(childComplexity int) int
+	}
+
+	LogoutResponse struct {
+		Message func(childComplexity int) int
+		Success func(childComplexity int) int
 	}
 
 	MediaCoverImage struct {
@@ -114,15 +116,15 @@ type ComplexityRoot struct {
 
 	Mutation struct {
 		AddList           func(childComplexity int, input model.AddListInput) int
-		DeleteList        func(childComplexity int, anilistID *int32) int
+		DeleteList        func(childComplexity int, anilistID int32) int
 		Login             func(childComplexity int, loginInput model.LoginInput) int
-		Ping              func(childComplexity int) int
+		Logout            func(childComplexity int) int
 		Register          func(childComplexity int, registerInput model.RegisterInput) int
 		UpdateAbout       func(childComplexity int, newAbout string) int
 		UpdateAvatar      func(childComplexity int, newAvatar model.UserAvatarInput) int
 		UpdateBannerImage func(childComplexity int, newBannerImage string) int
 		UpdateEmail       func(childComplexity int, newEmail string) int
-		UpdateList        func(childComplexity int, list *model.AddListInput) int
+		UpdateList        func(childComplexity int, aniListID int32, input model.UpdateListInput) int
 		UpdatePassword    func(childComplexity int, oldPassword string, newPassword string) int
 	}
 
@@ -131,6 +133,7 @@ type ComplexityRoot struct {
 		GetAnimeByID        func(childComplexity int, aniListID int32) int
 		GetAnimeWithFilters func(childComplexity int, animeFilter model.AnimeFilter) int
 		GetListByStatus     func(childComplexity int, mediaListStatus *model.MediaListStatus) int
+		Me                  func(childComplexity int) int
 	}
 
 	Studio struct {
@@ -155,10 +158,9 @@ type ComplexityRoot struct {
 }
 
 type MutationResolver interface {
-	Ping(ctx context.Context) (*bool, error)
 	AddList(ctx context.Context, input model.AddListInput) (bool, error)
-	UpdateList(ctx context.Context, list *model.AddListInput) (bool, error)
-	DeleteList(ctx context.Context, anilistID *int32) (bool, error)
+	UpdateList(ctx context.Context, aniListID int32, input model.UpdateListInput) (bool, error)
+	DeleteList(ctx context.Context, anilistID int32) (bool, error)
 	Login(ctx context.Context, loginInput model.LoginInput) (*model.User, error)
 	Register(ctx context.Context, registerInput model.RegisterInput) (*model.User, error)
 	UpdateEmail(ctx context.Context, newEmail string) (*model.User, error)
@@ -166,12 +168,14 @@ type MutationResolver interface {
 	UpdateAvatar(ctx context.Context, newAvatar model.UserAvatarInput) (*model.User, error)
 	UpdateBannerImage(ctx context.Context, newBannerImage string) (*model.User, error)
 	UpdateAbout(ctx context.Context, newAbout string) (*model.User, error)
+	Logout(ctx context.Context) (*model.LogoutResponse, error)
 }
 type QueryResolver interface {
 	GetAnimeByID(ctx context.Context, aniListID int32) (*model.Anime, error)
 	GetAnimeWithFilters(ctx context.Context, animeFilter model.AnimeFilter) ([]*model.Anime, error)
 	GetAllLists(ctx context.Context, mediaListStatus []*model.MediaListStatus) ([]*model.List, error)
 	GetListByStatus(ctx context.Context, mediaListStatus *model.MediaListStatus) ([]*model.List, error)
+	Me(ctx context.Context) (*model.User, error)
 }
 
 type executableSchema graphql.ExecutableSchemaState[ResolverRoot, DirectiveRoot, ComplexityRoot]
@@ -328,24 +332,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.List.AniListID(childComplexity), true
-	case "List.createdAt":
-		if e.ComplexityRoot.List.CreatedAt == nil {
-			break
-		}
-
-		return e.ComplexityRoot.List.CreatedAt(childComplexity), true
 	case "List.finishedAt":
 		if e.ComplexityRoot.List.FinishedAt == nil {
 			break
 		}
 
 		return e.ComplexityRoot.List.FinishedAt(childComplexity), true
-	case "List.mongoID":
-		if e.ComplexityRoot.List.MongoID == nil {
-			break
-		}
-
-		return e.ComplexityRoot.List.MongoID(childComplexity), true
 	case "List.notes":
 		if e.ComplexityRoot.List.Notes == nil {
 			break
@@ -394,12 +386,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.List.Status(childComplexity), true
-	case "List.updatedAt":
-		if e.ComplexityRoot.List.UpdatedAt == nil {
+
+	case "LogoutResponse.message":
+		if e.ComplexityRoot.LogoutResponse.Message == nil {
 			break
 		}
 
-		return e.ComplexityRoot.List.UpdatedAt(childComplexity), true
+		return e.ComplexityRoot.LogoutResponse.Message(childComplexity), true
+	case "LogoutResponse.success":
+		if e.ComplexityRoot.LogoutResponse.Success == nil {
+			break
+		}
+
+		return e.ComplexityRoot.LogoutResponse.Success(childComplexity), true
 
 	case "MediaCoverImage.color":
 		if e.ComplexityRoot.MediaCoverImage.Color == nil {
@@ -546,7 +545,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.DeleteList(childComplexity, args["anilistID"].(*int32)), true
+		return e.ComplexityRoot.Mutation.DeleteList(childComplexity, args["anilistID"].(int32)), true
 	case "Mutation.login":
 		if e.ComplexityRoot.Mutation.Login == nil {
 			break
@@ -558,12 +557,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.Login(childComplexity, args["loginInput"].(model.LoginInput)), true
-	case "Mutation.ping":
-		if e.ComplexityRoot.Mutation.Ping == nil {
+	case "Mutation.logout":
+		if e.ComplexityRoot.Mutation.Logout == nil {
 			break
 		}
 
-		return e.ComplexityRoot.Mutation.Ping(childComplexity), true
+		return e.ComplexityRoot.Mutation.Logout(childComplexity), true
 	case "Mutation.register":
 		if e.ComplexityRoot.Mutation.Register == nil {
 			break
@@ -629,7 +628,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.UpdateList(childComplexity, args["list"].(*model.AddListInput)), true
+		return e.ComplexityRoot.Mutation.UpdateList(childComplexity, args["aniListID"].(int32), args["input"].(model.UpdateListInput)), true
 	case "Mutation.updatePassword":
 		if e.ComplexityRoot.Mutation.UpdatePassword == nil {
 			break
@@ -686,6 +685,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.GetListByStatus(childComplexity, args["mediaListStatus"].(*model.MediaListStatus)), true
+
+	case "Query.me":
+		if e.ComplexityRoot.Query.Me == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.Me(childComplexity), true
 
 	case "Studio.id":
 		if e.ComplexityRoot.Studio.ID == nil {
@@ -769,6 +775,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputFuzzyDateInput,
 		ec.unmarshalInputLoginInput,
 		ec.unmarshalInputRegisterInput,
+		ec.unmarshalInputUpdateListInput,
 		ec.unmarshalInputUserAvatarInput,
 	)
 	first := true
@@ -976,26 +983,23 @@ input AnimeFilter {
 	Page:      Int
 	PerPage:   Int
 }
-type Query {
+extend type Query {
 	getAnimeByID(aniListID: Int!): Anime!
     getAnimeWithFilters(animeFilter: AnimeFilter!): [Anime!]!
 }
-
-type Mutation {
-	ping: Boolean
-}
 `, BuiltIn: false},
-	{Name: "../internal/adapters/schema/list.schema.graphqls", Input: `input FuzzyDateInput {
+	{Name: "../internal/adapters/schema/list.schema.graphqls", Input: `type FuzzyDate {
     year:  Int!
     month: Int!
     day:   Int!
 }
 
-type FuzzyDate {
+input FuzzyDateInput {
     year:  Int!
     month: Int!
     day:   Int!
 }
+
 
 enum MediaListStatus {
     CURRENT
@@ -1007,9 +1011,8 @@ enum MediaListStatus {
 }
 
 type List {
-    aniListID:   Int,
-    mongoID:     String
-    status:      MediaListStatus
+    aniListID:   Int!,
+    status:      MediaListStatus!
     score:       Float
     progress:    Int
     repeat:      Int
@@ -1018,28 +1021,37 @@ type List {
     notes:       String
     startedAt:   FuzzyDate
     finishedAt:  FuzzyDate
-    createdAt:   Time
-    updatedAt:   Time
 }
 
 input AddListInput {
-    anilistID: Int!
-    mediaListStatus: MediaListStatus!
-    score: Float
-    progress: Int
-    repeat: Int
-    private: Boolean
-    notes: String
-    startedAt: FuzzyDateInput
-    finishedAT: FuzzyDateInput
+    aniListID:   Int!,
+    status:      MediaListStatus!
+    score:       Float
+    progress:    Int
+    repeat:      Int
+    priority:   Int
+    private:    Boolean!
+    notes:       String
+    startedAt:   FuzzyDateInput
+    finishedAt:  FuzzyDateInput
 }
 
-
+input UpdateListInput {
+    status:      MediaListStatus!
+    score:       Float
+    progress:    Int
+    repeat:      Int
+    priority:    Int
+    private:     Boolean
+    notes:       String
+    startedAt:   FuzzyDateInput
+    finishedAt:  FuzzyDateInput
+}
 
 extend type Mutation {
     addList(input: AddListInput!): Boolean!
-    updateList(list: AddListInput): Boolean!
-    deleteList(anilistID: Int): Boolean!
+    updateList(aniListID: Int!, input: UpdateListInput!): Boolean!
+    deleteList(anilistID: Int!): Boolean!
 
 }
 
@@ -1047,6 +1059,9 @@ extend type Query {
     getAllLists(mediaListStatus: [MediaListStatus]): [List]
     getListByStatus(mediaListStatus: MediaListStatus): [List]
 }`, BuiltIn: false},
+	{Name: "../internal/adapters/schema/root.graphqls", Input: `type Query
+
+type Mutation`, BuiltIn: false},
 	{Name: "../internal/adapters/schema/user.schema.graphqls", Input: `type UserAvatar {
     large:  String
     medium: String
@@ -1078,6 +1093,10 @@ input UserAvatarInput {
     medium: String
 }
 
+type LogoutResponse {
+    success: Boolean!
+    message: String!
+}
 
 extend type Mutation {
     login(loginInput: LoginInput!): User!
@@ -1087,8 +1106,12 @@ extend type Mutation {
     updateAvatar(newAvatar: UserAvatarInput!): User!
     updateBannerImage(newBannerImage: String!): User!
     updateAbout(newAbout: String!): User!
+    logout: LogoutResponse!
 }
 
+extend type Query {
+    me: User
+}
 
 `, BuiltIn: false},
 }
@@ -1112,7 +1135,7 @@ func (ec *executionContext) field_Mutation_addList_args(ctx context.Context, raw
 func (ec *executionContext) field_Mutation_deleteList_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "anilistID", ec.unmarshalOInt2ᚖint32)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "anilistID", ec.unmarshalNInt2int32)
 	if err != nil {
 		return nil, err
 	}
@@ -1189,11 +1212,16 @@ func (ec *executionContext) field_Mutation_updateEmail_args(ctx context.Context,
 func (ec *executionContext) field_Mutation_updateList_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "list", ec.unmarshalOAddListInput2ᚖKataraᚋgraphᚋmodelᚐAddListInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "aniListID", ec.unmarshalNInt2int32)
 	if err != nil {
 		return nil, err
 	}
-	args["list"] = arg0
+	args["aniListID"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateListInput2KataraᚋgraphᚋmodelᚐUpdateListInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg1
 	return args, nil
 }
 
@@ -2022,9 +2050,9 @@ func (ec *executionContext) _List_aniListID(ctx context.Context, field graphql.C
 			return obj.AniListID, nil
 		},
 		nil,
-		ec.marshalOInt2ᚖint32,
+		ec.marshalNInt2int32,
 		true,
-		false,
+		true,
 	)
 }
 
@@ -2041,35 +2069,6 @@ func (ec *executionContext) fieldContext_List_aniListID(_ context.Context, field
 	return fc, nil
 }
 
-func (ec *executionContext) _List_mongoID(ctx context.Context, field graphql.CollectedField, obj *model.List) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_List_mongoID,
-		func(ctx context.Context) (any, error) {
-			return obj.MongoID, nil
-		},
-		nil,
-		ec.marshalOString2ᚖstring,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_List_mongoID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "List",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _List_status(ctx context.Context, field graphql.CollectedField, obj *model.List) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -2080,9 +2079,9 @@ func (ec *executionContext) _List_status(ctx context.Context, field graphql.Coll
 			return obj.Status, nil
 		},
 		nil,
-		ec.marshalOMediaListStatus2ᚖKataraᚋgraphᚋmodelᚐMediaListStatus,
+		ec.marshalNMediaListStatus2KataraᚋgraphᚋmodelᚐMediaListStatus,
 		true,
-		false,
+		true,
 	)
 }
 
@@ -2347,59 +2346,59 @@ func (ec *executionContext) fieldContext_List_finishedAt(_ context.Context, fiel
 	return fc, nil
 }
 
-func (ec *executionContext) _List_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.List) (ret graphql.Marshaler) {
+func (ec *executionContext) _LogoutResponse_success(ctx context.Context, field graphql.CollectedField, obj *model.LogoutResponse) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_List_createdAt,
+		ec.fieldContext_LogoutResponse_success,
 		func(ctx context.Context) (any, error) {
-			return obj.CreatedAt, nil
+			return obj.Success, nil
 		},
 		nil,
-		ec.marshalOTime2ᚖtimeᚐTime,
+		ec.marshalNBoolean2bool,
 		true,
-		false,
+		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_List_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_LogoutResponse_success(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "List",
+		Object:     "LogoutResponse",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Time does not have child fields")
+			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _List_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.List) (ret graphql.Marshaler) {
+func (ec *executionContext) _LogoutResponse_message(ctx context.Context, field graphql.CollectedField, obj *model.LogoutResponse) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_List_updatedAt,
+		ec.fieldContext_LogoutResponse_message,
 		func(ctx context.Context) (any, error) {
-			return obj.UpdatedAt, nil
+			return obj.Message, nil
 		},
 		nil,
-		ec.marshalOTime2ᚖtimeᚐTime,
+		ec.marshalNString2string,
 		true,
-		false,
+		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_List_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_LogoutResponse_message(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "List",
+		Object:     "LogoutResponse",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Time does not have child fields")
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -2985,35 +2984,6 @@ func (ec *executionContext) fieldContext_Mediatag_userID(_ context.Context, fiel
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_ping(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_ping,
-		func(ctx context.Context) (any, error) {
-			return ec.Resolvers.Mutation().Ping(ctx)
-		},
-		nil,
-		ec.marshalOBoolean2ᚖbool,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_ping(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Mutation_addList(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -3063,7 +3033,7 @@ func (ec *executionContext) _Mutation_updateList(ctx context.Context, field grap
 		ec.fieldContext_Mutation_updateList,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().UpdateList(ctx, fc.Args["list"].(*model.AddListInput))
+			return ec.Resolvers.Mutation().UpdateList(ctx, fc.Args["aniListID"].(int32), fc.Args["input"].(model.UpdateListInput))
 		},
 		nil,
 		ec.marshalNBoolean2bool,
@@ -3104,7 +3074,7 @@ func (ec *executionContext) _Mutation_deleteList(ctx context.Context, field grap
 		ec.fieldContext_Mutation_deleteList,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().DeleteList(ctx, fc.Args["anilistID"].(*int32))
+			return ec.Resolvers.Mutation().DeleteList(ctx, fc.Args["anilistID"].(int32))
 		},
 		nil,
 		ec.marshalNBoolean2bool,
@@ -3536,6 +3506,41 @@ func (ec *executionContext) fieldContext_Mutation_updateAbout(ctx context.Contex
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_logout(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_logout,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Mutation().Logout(ctx)
+		},
+		nil,
+		ec.marshalNLogoutResponse2ᚖKataraᚋgraphᚋmodelᚐLogoutResponse,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_logout(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "success":
+				return ec.fieldContext_LogoutResponse_success(ctx, field)
+			case "message":
+				return ec.fieldContext_LogoutResponse_message(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type LogoutResponse", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_getAnimeByID(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -3725,8 +3730,6 @@ func (ec *executionContext) fieldContext_Query_getAllLists(ctx context.Context, 
 			switch field.Name {
 			case "aniListID":
 				return ec.fieldContext_List_aniListID(ctx, field)
-			case "mongoID":
-				return ec.fieldContext_List_mongoID(ctx, field)
 			case "status":
 				return ec.fieldContext_List_status(ctx, field)
 			case "score":
@@ -3745,10 +3748,6 @@ func (ec *executionContext) fieldContext_Query_getAllLists(ctx context.Context, 
 				return ec.fieldContext_List_startedAt(ctx, field)
 			case "finishedAt":
 				return ec.fieldContext_List_finishedAt(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_List_createdAt(ctx, field)
-			case "updatedAt":
-				return ec.fieldContext_List_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type List", field.Name)
 		},
@@ -3794,8 +3793,6 @@ func (ec *executionContext) fieldContext_Query_getListByStatus(ctx context.Conte
 			switch field.Name {
 			case "aniListID":
 				return ec.fieldContext_List_aniListID(ctx, field)
-			case "mongoID":
-				return ec.fieldContext_List_mongoID(ctx, field)
 			case "status":
 				return ec.fieldContext_List_status(ctx, field)
 			case "score":
@@ -3814,10 +3811,6 @@ func (ec *executionContext) fieldContext_Query_getListByStatus(ctx context.Conte
 				return ec.fieldContext_List_startedAt(ctx, field)
 			case "finishedAt":
 				return ec.fieldContext_List_finishedAt(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_List_createdAt(ctx, field)
-			case "updatedAt":
-				return ec.fieldContext_List_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type List", field.Name)
 		},
@@ -3832,6 +3825,51 @@ func (ec *executionContext) fieldContext_Query_getListByStatus(ctx context.Conte
 	if fc.Args, err = ec.field_Query_getListByStatus_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_me(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_me,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().Me(ctx)
+		},
+		nil,
+		ec.marshalOUser2ᚖKataraᚋgraphᚋmodelᚐUser,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_me(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "name":
+				return ec.fieldContext_User_name(ctx, field)
+			case "email":
+				return ec.fieldContext_User_email(ctx, field)
+			case "about":
+				return ec.fieldContext_User_about(ctx, field)
+			case "avatar":
+				return ec.fieldContext_User_avatar(ctx, field)
+			case "bannerImage":
+				return ec.fieldContext_User_bannerImage(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_User_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_User_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
 	}
 	return fc, nil
 }
@@ -5726,27 +5764,27 @@ func (ec *executionContext) unmarshalInputAddListInput(ctx context.Context, obj 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"anilistID", "mediaListStatus", "score", "progress", "repeat", "private", "notes", "startedAt", "finishedAT"}
+	fieldsInOrder := [...]string{"aniListID", "status", "score", "progress", "repeat", "priority", "private", "notes", "startedAt", "finishedAt"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
-		case "anilistID":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("anilistID"))
+		case "aniListID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("aniListID"))
 			data, err := ec.unmarshalNInt2int32(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.AnilistID = data
-		case "mediaListStatus":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("mediaListStatus"))
+			it.AniListID = data
+		case "status":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("status"))
 			data, err := ec.unmarshalNMediaListStatus2KataraᚋgraphᚋmodelᚐMediaListStatus(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.MediaListStatus = data
+			it.Status = data
 		case "score":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("score"))
 			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
@@ -5768,9 +5806,16 @@ func (ec *executionContext) unmarshalInputAddListInput(ctx context.Context, obj 
 				return it, err
 			}
 			it.Repeat = data
+		case "priority":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("priority"))
+			data, err := ec.unmarshalOInt2ᚖint32(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Priority = data
 		case "private":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("private"))
-			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -5789,8 +5834,8 @@ func (ec *executionContext) unmarshalInputAddListInput(ctx context.Context, obj 
 				return it, err
 			}
 			it.StartedAt = data
-		case "finishedAT":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("finishedAT"))
+		case "finishedAt":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("finishedAt"))
 			data, err := ec.unmarshalOFuzzyDateInput2ᚖKataraᚋgraphᚋmodelᚐFuzzyDateInput(ctx, v)
 			if err != nil {
 				return it, err
@@ -6012,6 +6057,92 @@ func (ec *executionContext) unmarshalInputRegisterInput(ctx context.Context, obj
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputUpdateListInput(ctx context.Context, obj any) (model.UpdateListInput, error) {
+	var it model.UpdateListInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"status", "score", "progress", "repeat", "priority", "private", "notes", "startedAt", "finishedAt"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "status":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("status"))
+			data, err := ec.unmarshalNMediaListStatus2KataraᚋgraphᚋmodelᚐMediaListStatus(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Status = data
+		case "score":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("score"))
+			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Score = data
+		case "progress":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("progress"))
+			data, err := ec.unmarshalOInt2ᚖint32(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Progress = data
+		case "repeat":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("repeat"))
+			data, err := ec.unmarshalOInt2ᚖint32(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Repeat = data
+		case "priority":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("priority"))
+			data, err := ec.unmarshalOInt2ᚖint32(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Priority = data
+		case "private":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("private"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Private = data
+		case "notes":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("notes"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Notes = data
+		case "startedAt":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("startedAt"))
+			data, err := ec.unmarshalOFuzzyDateInput2ᚖKataraᚋgraphᚋmodelᚐFuzzyDateInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.StartedAt = data
+		case "finishedAt":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("finishedAt"))
+			data, err := ec.unmarshalOFuzzyDateInput2ᚖKataraᚋgraphᚋmodelᚐFuzzyDateInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.FinishedAt = data
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputUserAvatarInput(ctx context.Context, obj any) (model.UserAvatarInput, error) {
 	var it model.UserAvatarInput
 	if obj == nil {
@@ -6197,10 +6328,14 @@ func (ec *executionContext) _List(ctx context.Context, sel ast.SelectionSet, obj
 			out.Values[i] = graphql.MarshalString("List")
 		case "aniListID":
 			out.Values[i] = ec._List_aniListID(ctx, field, obj)
-		case "mongoID":
-			out.Values[i] = ec._List_mongoID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "status":
 			out.Values[i] = ec._List_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "score":
 			out.Values[i] = ec._List_score(ctx, field, obj)
 		case "progress":
@@ -6220,10 +6355,50 @@ func (ec *executionContext) _List(ctx context.Context, sel ast.SelectionSet, obj
 			out.Values[i] = ec._List_startedAt(ctx, field, obj)
 		case "finishedAt":
 			out.Values[i] = ec._List_finishedAt(ctx, field, obj)
-		case "createdAt":
-			out.Values[i] = ec._List_createdAt(ctx, field, obj)
-		case "updatedAt":
-			out.Values[i] = ec._List_updatedAt(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var logoutResponseImplementors = []string{"LogoutResponse"}
+
+func (ec *executionContext) _LogoutResponse(ctx context.Context, sel ast.SelectionSet, obj *model.LogoutResponse) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, logoutResponseImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("LogoutResponse")
+		case "success":
+			out.Values[i] = ec._LogoutResponse_success(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "message":
+			out.Values[i] = ec._LogoutResponse_message(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -6502,10 +6677,6 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Mutation")
-		case "ping":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_ping(ctx, field)
-			})
 		case "addList":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_addList(ctx, field)
@@ -6572,6 +6743,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "updateAbout":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_updateAbout(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "logout":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_logout(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -6691,6 +6869,25 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_getListByStatus(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "me":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_me(ctx, field)
 				return res
 			}
 
@@ -7285,6 +7482,20 @@ func (ec *executionContext) unmarshalNLoginInput2KataraᚋgraphᚋmodelᚐLoginI
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) marshalNLogoutResponse2KataraᚋgraphᚋmodelᚐLogoutResponse(ctx context.Context, sel ast.SelectionSet, v model.LogoutResponse) graphql.Marshaler {
+	return ec._LogoutResponse(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNLogoutResponse2ᚖKataraᚋgraphᚋmodelᚐLogoutResponse(ctx context.Context, sel ast.SelectionSet, v *model.LogoutResponse) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._LogoutResponse(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNMediaListStatus2KataraᚋgraphᚋmodelᚐMediaListStatus(ctx context.Context, v any) (model.MediaListStatus, error) {
 	var res model.MediaListStatus
 	err := res.UnmarshalGQL(v)
@@ -7350,6 +7561,11 @@ func (ec *executionContext) marshalNTime2timeᚐTime(ctx context.Context, sel as
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) unmarshalNUpdateListInput2KataraᚋgraphᚋmodelᚐUpdateListInput(ctx context.Context, v any) (model.UpdateListInput, error) {
+	res, err := ec.unmarshalInputUpdateListInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNUser2KataraᚋgraphᚋmodelᚐUser(ctx context.Context, sel ast.SelectionSet, v model.User) graphql.Marshaler {
@@ -7510,14 +7726,6 @@ func (ec *executionContext) marshalN__TypeKind2string(ctx context.Context, sel a
 		}
 	}
 	return res
-}
-
-func (ec *executionContext) unmarshalOAddListInput2ᚖKataraᚋgraphᚋmodelᚐAddListInput(ctx context.Context, v any) (*model.AddListInput, error) {
-	if v == nil {
-		return nil, nil
-	}
-	res, err := ec.unmarshalInputAddListInput(ctx, v)
-	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalOBoolean2bool(ctx context.Context, v any) (bool, error) {
@@ -7890,6 +8098,13 @@ func (ec *executionContext) marshalOTime2ᚖtimeᚐTime(ctx context.Context, sel
 	_ = ctx
 	res := graphql.MarshalTime(*v)
 	return res
+}
+
+func (ec *executionContext) marshalOUser2ᚖKataraᚋgraphᚋmodelᚐUser(ctx context.Context, sel ast.SelectionSet, v *model.User) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._User(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOUserAvatar2ᚖKataraᚋgraphᚋmodelᚐUserAvatar(ctx context.Context, sel ast.SelectionSet, v *model.UserAvatar) graphql.Marshaler {

@@ -11,15 +11,16 @@ import (
 )
 
 type AddListInput struct {
-	AnilistID       int32           `json:"anilistID"`
-	MediaListStatus MediaListStatus `json:"mediaListStatus"`
-	Score           *float64        `json:"score,omitempty"`
-	Progress        *int32          `json:"progress,omitempty"`
-	Repeat          *int32          `json:"repeat,omitempty"`
-	Private         *bool           `json:"private,omitempty"`
-	Notes           *string         `json:"notes,omitempty"`
-	StartedAt       *FuzzyDateInput `json:"startedAt,omitempty"`
-	FinishedAt      *FuzzyDateInput `json:"finishedAT,omitempty"`
+	AniListID  int32           `json:"aniListID"`
+	Status     MediaListStatus `json:"status"`
+	Score      *float64        `json:"score,omitempty"`
+	Progress   *int32          `json:"progress,omitempty"`
+	Repeat     *int32          `json:"repeat,omitempty"`
+	Priority   *int32          `json:"priority,omitempty"`
+	Private    bool            `json:"private"`
+	Notes      *string         `json:"notes,omitempty"`
+	StartedAt  *FuzzyDateInput `json:"startedAt,omitempty"`
+	FinishedAt *FuzzyDateInput `json:"finishedAt,omitempty"`
 }
 
 type Anime struct {
@@ -69,24 +70,26 @@ type FuzzyDateInput struct {
 }
 
 type List struct {
-	AniListID  *int32           `json:"aniListID,omitempty"`
-	MongoID    *string          `json:"mongoID,omitempty"`
-	Status     *MediaListStatus `json:"status,omitempty"`
-	Score      *float64         `json:"score,omitempty"`
-	Progress   *int32           `json:"progress,omitempty"`
-	Repeat     *int32           `json:"repeat,omitempty"`
-	Priority   *int32           `json:"priority,omitempty"`
-	Private    bool             `json:"private"`
-	Notes      *string          `json:"notes,omitempty"`
-	StartedAt  *FuzzyDate       `json:"startedAt,omitempty"`
-	FinishedAt *FuzzyDate       `json:"finishedAt,omitempty"`
-	CreatedAt  *time.Time       `json:"createdAt,omitempty"`
-	UpdatedAt  *time.Time       `json:"updatedAt,omitempty"`
+	AniListID  int32           `json:"aniListID"`
+	Status     MediaListStatus `json:"status"`
+	Score      *float64        `json:"score,omitempty"`
+	Progress   *int32          `json:"progress,omitempty"`
+	Repeat     *int32          `json:"repeat,omitempty"`
+	Priority   *int32          `json:"priority,omitempty"`
+	Private    bool            `json:"private"`
+	Notes      *string         `json:"notes,omitempty"`
+	StartedAt  *FuzzyDate      `json:"startedAt,omitempty"`
+	FinishedAt *FuzzyDate      `json:"finishedAt,omitempty"`
 }
 
 type LoginInput struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
+}
+
+type LogoutResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
 }
 
 type MediaCoverImage struct {
@@ -136,6 +139,18 @@ type RegisterInput struct {
 type Studio struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
+}
+
+type UpdateListInput struct {
+	Status     MediaListStatus `json:"status"`
+	Score      *float64        `json:"score,omitempty"`
+	Progress   *int32          `json:"progress,omitempty"`
+	Repeat     *int32          `json:"repeat,omitempty"`
+	Priority   *int32          `json:"priority,omitempty"`
+	Private    *bool           `json:"private,omitempty"`
+	Notes      *string         `json:"notes,omitempty"`
+	StartedAt  *FuzzyDateInput `json:"startedAt,omitempty"`
+	FinishedAt *FuzzyDateInput `json:"finishedAt,omitempty"`
 }
 
 type User struct {
