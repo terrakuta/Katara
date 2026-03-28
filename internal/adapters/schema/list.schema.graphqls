@@ -1,14 +1,15 @@
+type FuzzyDate {
+    year:  Int!
+    month: Int!
+    day:   Int!
+}
+
 input FuzzyDateInput {
     year:  Int!
     month: Int!
     day:   Int!
 }
 
-type FuzzyDate {
-    year:  Int!
-    month: Int!
-    day:   Int!
-}
 
 enum MediaListStatus {
     CURRENT
@@ -20,9 +21,8 @@ enum MediaListStatus {
 }
 
 type List {
-    aniListID:   Int,
-    mongoID:     String
-    status:      MediaListStatus
+    aniListID:   Int!,
+    status:      MediaListStatus!
     score:       Float
     progress:    Int
     repeat:      Int
@@ -31,28 +31,37 @@ type List {
     notes:       String
     startedAt:   FuzzyDate
     finishedAt:  FuzzyDate
-    createdAt:   Time
-    updatedAt:   Time
 }
 
 input AddListInput {
-    anilistID: Int!
-    mediaListStatus: MediaListStatus!
-    score: Float
-    progress: Int
-    repeat: Int
-    private: Boolean
-    notes: String
-    startedAt: FuzzyDateInput
-    finishedAT: FuzzyDateInput
+    aniListID:   Int!,
+    status:      MediaListStatus!
+    score:       Float
+    progress:    Int
+    repeat:      Int
+    priority:   Int
+    private:    Boolean!
+    notes:       String
+    startedAt:   FuzzyDateInput
+    finishedAt:  FuzzyDateInput
 }
 
-
+input UpdateListInput {
+    status:      MediaListStatus!
+    score:       Float
+    progress:    Int
+    repeat:      Int
+    priority:    Int
+    private:     Boolean
+    notes:       String
+    startedAt:   FuzzyDateInput
+    finishedAt:  FuzzyDateInput
+}
 
 extend type Mutation {
     addList(input: AddListInput!): Boolean!
-    updateList(list: AddListInput): Boolean!
-    deleteList(anilistID: Int): Boolean!
+    updateList(aniListID: Int!, input: UpdateListInput!): Boolean!
+    deleteList(anilistID: Int!): Boolean!
 
 }
 

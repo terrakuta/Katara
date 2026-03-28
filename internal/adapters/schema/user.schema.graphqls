@@ -29,6 +29,10 @@ input UserAvatarInput {
     medium: String
 }
 
+type LogoutResponse {
+    success: Boolean!
+    message: String!
+}
 
 extend type Mutation {
     login(loginInput: LoginInput!): User!
@@ -38,6 +42,10 @@ extend type Mutation {
     updateAvatar(newAvatar: UserAvatarInput!): User!
     updateBannerImage(newBannerImage: String!): User!
     updateAbout(newAbout: String!): User!
+    logout: LogoutResponse!
 }
 
+extend type Query {
+    me: User
+}
 

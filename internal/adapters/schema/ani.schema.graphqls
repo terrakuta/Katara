@@ -129,11 +129,7 @@ input AnimeFilter {
 	Page:      Int
 	PerPage:   Int
 }
-type Query {
+extend type Query {
 	getAnimeByID(aniListID: Int!): Anime!
     getAnimeWithFilters(animeFilter: AnimeFilter!): [Anime!]!
-}
-
-type Mutation {
-	ping: Boolean
 }
