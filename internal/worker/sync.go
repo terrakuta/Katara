@@ -32,18 +32,24 @@ func (w *SyncWorker) Start() {
 
 func (w *SyncWorker) sync() error {
 	ctx := context.Background()
+	total := 0
 
-	animes, err := w.provider.FetchAll(ctx)
+	err := w.provider.FetchAll(ctx, func(batch []anime.Anime) error {
+		for _, a := range batch {
+			if err := w.repo.UpsertAnime(ctx, &a); err != nil {
+				log.Printf("upsert error for anime %d: %v", a.AniListID, err)
+			}
+		}
+		total += len(batch)
+		log.Printf("batch saved, total so far: %d", total)
+		return nil
+	})
+
 	if err != nil {
 		return err
 	}
 
-	for _, a := range animes {
-		if err := w.repo.UpsertAnime(ctx, &a); err != nil {
-			log.Printf("upsert error for anime %d: %v", a.AniListID, err)
-		}
-	}
-
-	log.Printf("sync complete: %d anime updated", len(animes))
+	log.Printf("sync complete: %d anime", total)
+	total = 0
 	return nil
 }

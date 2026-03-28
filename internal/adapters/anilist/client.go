@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -17,12 +18,12 @@ type AnilistClient struct {
 
 func NewAnilistClient() *AnilistClient {
 	return &AnilistClient{
-		httpClient: &http.Client{Timeout: 10 * time.Second},
+		httpClient: &http.Client{Timeout: 30 * time.Second},
 		baseURL:    "https://graphql.anilist.co",
 	}
 }
 
-func (c *AnilistClient) FetchAll(ctx context.Context) ([]anime.Anime, error) {
+func (c *AnilistClient) FetchAll(ctx context.Context, onBatch func([]anime.Anime) error) error {
 	query := `
     query ($page: Int) {
         Page(page: $page, perPage: 50) {
@@ -41,17 +42,17 @@ func (c *AnilistClient) FetchAll(ctx context.Context) ([]anime.Anime, error) {
                 description
                 coverImage { extraLarge large medium color }
                 trailer { id site thumbnail }
-                tags { id name description category rank isGeneralSpoiler isMediaSpoiler isAdult userId }
                 studios { nodes { id name } }
             }
             pageInfo { hasNextPage }
         }
     }`
 
-	var allAnimes []anime.Anime
 	page := 1
 
 	for {
+		log.Printf("fetching page %d", page)
+
 		body := map[string]interface{}{
 			"query":     query,
 			"variables": map[string]interface{}{"page": page},
@@ -59,38 +60,71 @@ func (c *AnilistClient) FetchAll(ctx context.Context) ([]anime.Anime, error) {
 
 		jsonBody, err := json.Marshal(body)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL, bytes.NewBuffer(jsonBody))
 		if err != nil {
-			return nil, err
+			return err
 		}
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := c.httpClient.Do(req)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		defer resp.Body.Close()
+
+		if resp.StatusCode == http.StatusTooManyRequests {
+			resp.Body.Close()
+			log.Printf("rate limited, waiting 60s...")
+			time.Sleep(60 * time.Second)
+			continue
+		}
 
 		var result AnilistResponse
-		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-			return nil, err
+		err = json.NewDecoder(resp.Body).Decode(&result)
+		resp.Body.Close()
+		if err != nil {
+			return err
 		}
 
-		allAnimes = append(allAnimes, result.toDomain()...)
+		log.Printf("page %d: got %d anime, hasNextPage: %v",
+			page,
+			len(result.Data.Page.Media),
+			result.Data.Page.PageInfo.HasNextPage,
+		)
+
+		if len(result.Errors) > 0 {
+			log.Printf("anilist errors on page %d: %+v", page, result.Errors)
+			time.Sleep(5 * time.Second)
+			continue
+		}
+
+		if len(result.Data.Page.Media) == 0 && page > 1 {
+			log.Printf("page %d returned 0 anime, retrying...", page)
+			time.Sleep(5 * time.Second)
+			continue
+		}
+
+		if err := onBatch(result.toDomain()); err != nil {
+			return err
+		}
 
 		if !result.Data.Page.PageInfo.HasNextPage {
 			break
 		}
 		page++
+		time.Sleep(700 * time.Millisecond)
 	}
 
-	return allAnimes, nil
+	return nil
 }
 
 type AnilistResponse struct {
+	Errors []struct {
+		Message string `json:"message"`
+		Status  int    `json:"status"`
+	} `json:"errors"`
 	Data struct {
 		Page struct {
 			Media []struct {
@@ -200,6 +234,7 @@ func (r *AnilistResponse) toDomain() []anime.Anime {
 			AverageScore: m.AverageScore,
 			Popularity:   m.Popularity,
 			Description:  m.Description,
+			Trending:     m.Trending,
 			SeasonYear:   m.SeasonYear,
 			Studios:      studios,
 			Tags:         tags,
