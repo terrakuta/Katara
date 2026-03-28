@@ -7,40 +7,54 @@ package graph
 
 import (
 	"Katara/graph/model"
+	"Katara/middleware"
 	"context"
+	"errors"
+	"net/http"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 // Login is the resolver for the login field.
 func (r *mutationResolver) Login(ctx context.Context, loginInput model.LoginInput) (*model.User, error) {
-	usr, err := r.UserService.Login(ctx, loginInput.Email, loginInput.Password)
+	usr, sessionID, err := r.UserService.Login(ctx, loginInput.Email, loginInput.Password)
 
 	if err != nil {
 		return nil, err
 	}
 
-	User := toGraphqlUser(usr)
+	w, ok := ctx.Value("writer").(http.ResponseWriter)
+	if !ok {
+		return nil, errors.New("writer not found")
+	}
 
-	return User, nil
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session_id",
+		Value:    sessionID,
+		HttpOnly: true,
+		MaxAge:   3600,
+	})
+
+	return toGraphqlUser(usr), nil
 }
 
 // Register is the resolver for the register field.
 func (r *mutationResolver) Register(ctx context.Context, registerInput model.RegisterInput) (*model.User, error) {
-	usr, err := r.UserService.Register(ctx, registerInput.Email, registerInput.Name, registerInput.Password)
+	usr, err := r.UserService.Register(ctx, registerInput.Name, registerInput.Email, registerInput.Password)
 
 	if err != nil {
 		return nil, err
 	}
 
-	User := toGraphqlUser(usr)
-
-	return User, nil
+	return toGraphqlUser(usr), nil
 }
 
 // UpdateEmail is the resolver for the updateEmail field.
 func (r *mutationResolver) UpdateEmail(ctx context.Context, newEmail string) (*model.User, error) {
-	var mongoID bson.ObjectID
+	mongoID, q := ctx.Value(middleware.MongoIDkey).(bson.ObjectID)
+	if !q {
+		return nil, errors.New("Unauthorized")
+	}
 	updEmail, err := r.UserService.UpdateEmail(ctx, mongoID, newEmail)
 
 	if err != nil {
@@ -54,7 +68,10 @@ func (r *mutationResolver) UpdateEmail(ctx context.Context, newEmail string) (*m
 
 // UpdatePassword is the resolver for the updatePassword field.
 func (r *mutationResolver) UpdatePassword(ctx context.Context, oldPassword string, newPassword string) (*model.User, error) {
-	var mongoID bson.ObjectID
+	mongoID, q := ctx.Value(middleware.MongoIDkey).(bson.ObjectID)
+	if !q {
+		return nil, errors.New("Unauthorized")
+	}
 	updPass, err := r.UserService.UpdatePassword(ctx, mongoID, oldPassword, newPassword)
 
 	if err != nil {
@@ -68,7 +85,10 @@ func (r *mutationResolver) UpdatePassword(ctx context.Context, oldPassword strin
 
 // UpdateAvatar is the resolver for the updateAvatar field.
 func (r *mutationResolver) UpdateAvatar(ctx context.Context, newAvatar model.UserAvatarInput) (*model.User, error) {
-	var mongoID bson.ObjectID
+	mongoID, q := ctx.Value(middleware.MongoIDkey).(bson.ObjectID)
+	if !q {
+		return nil, errors.New("Unauthorized")
+	}
 	updAvatar, err := r.UserService.UpdateAvatar(ctx, mongoID, fromGraphqlUserAvatar(&newAvatar))
 
 	if err != nil {
@@ -82,7 +102,10 @@ func (r *mutationResolver) UpdateAvatar(ctx context.Context, newAvatar model.Use
 
 // UpdateBannerImage is the resolver for the updateBannerImage field.
 func (r *mutationResolver) UpdateBannerImage(ctx context.Context, newBannerImage string) (*model.User, error) {
-	var mongoID bson.ObjectID
+	mongoID, q := ctx.Value(middleware.MongoIDkey).(bson.ObjectID)
+	if !q {
+		return nil, errors.New("Unauthorized")
+	}
 	updBannerImage, err := r.UserService.UpdateBannerImage(ctx, mongoID, newBannerImage)
 
 	if err != nil {
@@ -96,7 +119,10 @@ func (r *mutationResolver) UpdateBannerImage(ctx context.Context, newBannerImage
 
 // UpdateAbout is the resolver for the updateAbout field.
 func (r *mutationResolver) UpdateAbout(ctx context.Context, newAbout string) (*model.User, error) {
-	var mongoID bson.ObjectID
+	mongoID, q := ctx.Value(middleware.MongoIDkey).(bson.ObjectID)
+	if !q {
+		return nil, errors.New("Unauthorized")
+	}
 	updAbout, err := r.UserService.UpdateAbout(ctx, mongoID, newAbout)
 
 	if err != nil {
@@ -106,4 +132,43 @@ func (r *mutationResolver) UpdateAbout(ctx context.Context, newAbout string) (*m
 	userWithUpdatedAbout := toGraphqlUser(updAbout)
 
 	return userWithUpdatedAbout, nil
+}
+
+// Logout is the resolver for the logout field.
+func (r *mutationResolver) Logout(ctx context.Context) (*model.LogoutResponse, error) {
+	w, ok := ctx.Value("writer").(http.ResponseWriter)
+	if !ok {
+		return &model.LogoutResponse{
+			Success: false,
+			Message: "Internal server error",
+		}, nil
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session_id",
+		Value:    "",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Path:     "/",
+	})
+
+	return &model.LogoutResponse{
+		Success: true,
+		Message: "Successfully logged out",
+	}, nil
+}
+
+// Me is the resolver for the me field.
+func (r *queryResolver) Me(ctx context.Context) (*model.User, error) {
+	mongoID, q := ctx.Value(middleware.MongoIDkey).(bson.ObjectID)
+	if !q {
+		return nil, errors.New("Unauthorized")
+	}
+
+	user, err := r.UserService.GetUserByID(ctx, mongoID)
+	if err != nil {
+		return nil, err
+	}
+
+	return toGraphqlUser(user), nil
 }

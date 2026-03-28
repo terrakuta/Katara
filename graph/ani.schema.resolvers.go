@@ -8,13 +8,7 @@ package graph
 import (
 	"Katara/graph/model"
 	"context"
-	"fmt"
 )
-
-// Ping is the resolver for the ping field.
-func (r *mutationResolver) Ping(ctx context.Context) (*bool, error) {
-	panic(fmt.Errorf("not implemented: Ping - ping"))
-}
 
 // GetAnimeByID is the resolver for the getAnimeByID field.
 func (r *queryResolver) GetAnimeByID(ctx context.Context, aniListID int32) (*model.Anime, error) {
@@ -42,12 +36,3 @@ func (r *queryResolver) GetAnimeWithFilters(ctx context.Context, animeFilter mod
 	}
 	return result, nil
 }
-
-// Mutation returns MutationResolver implementation.
-func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
-
-// Query returns QueryResolver implementation.
-func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
-
-type mutationResolver struct{ *Resolver }
-type queryResolver struct{ *Resolver }

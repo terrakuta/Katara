@@ -7,31 +7,97 @@ package graph
 
 import (
 	"Katara/graph/model"
+	"Katara/internal/domain/list"
+	"Katara/middleware"
 	"context"
+	"errors"
 	"fmt"
+
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 // AddList is the resolver for the addList field.
 func (r *mutationResolver) AddList(ctx context.Context, input model.AddListInput) (bool, error) {
-	panic("not implemented")
+	MongoUserID, ok := ctx.Value(middleware.MongoIDkey).(bson.ObjectID)
+
+	if !ok {
+		return false, errors.New("user not authenticated or invalid ID")
+	}
+
+	addListInput := fromGraphqlAddListInput(&input, MongoUserID)
+	err := r.ListService.AddList(ctx, MongoUserID, addListInput)
+
+	if err != nil {
+		if mongo.IsDuplicateKeyError(err) {
+			return false, errors.New("this anime is already in your list")
+		}
+		return false, errors.New("internal server error")
+	}
+
+	return true, nil
 }
 
 // UpdateList is the resolver for the updateList field.
-func (r *mutationResolver) UpdateList(ctx context.Context, list *model.AddListInput) (bool, error) {
-	panic("not implemented")
+func (r *mutationResolver) UpdateList(ctx context.Context, aniListID int32, input model.UpdateListInput) (bool, error) {
+	panic(fmt.Errorf("not implemented: UpdateList - updateList"))
 }
 
 // DeleteList is the resolver for the deleteList field.
-func (r *mutationResolver) DeleteList(ctx context.Context, anilistID *int32) (bool, error) {
-	panic(fmt.Errorf("not implemented: DeleteList - deleteList"))
+func (r *mutationResolver) DeleteList(ctx context.Context, anilistID int32) (bool, error) {
+	MongoUserID, ok := ctx.Value(middleware.MongoIDkey).(bson.ObjectID)
+
+	if !ok {
+		return false, errors.New("user not authenticated or invalid ID")
+	}
+	removed, err := r.ListService.RemoveList(ctx, MongoUserID, int(anilistID))
+
+	if err != nil {
+		return false, errors.New("internal server error")
+	}
+	return removed, nil
 }
 
 // GetAllLists is the resolver for the getAllLists field.
 func (r *queryResolver) GetAllLists(ctx context.Context, mediaListStatus []*model.MediaListStatus) ([]*model.List, error) {
-	panic(fmt.Errorf("not implemented: GetAllLists - getAllLists"))
+	MongoUserID, ok := ctx.Value(middleware.MongoIDkey).(bson.ObjectID)
+	if !ok {
+		return nil, errors.New("user not authenticated or invalid ID")
+	}
+
+	var domainStatuses []list.MediaListStatus
+	for _, s := range mediaListStatus {
+		if s != nil {
+			domainStatuses = append(domainStatuses, list.MediaListStatus(*s))
+		}
+	}
+
+	domainLists, err := r.ListService.GetAllLists(ctx, MongoUserID, domainStatuses)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch all lists: %w", err)
+	}
+	return MapSliceDomainToGraphql(domainLists), nil
 }
 
 // GetListByStatus is the resolver for the getListByStatus field.
 func (r *queryResolver) GetListByStatus(ctx context.Context, mediaListStatus *model.MediaListStatus) ([]*model.List, error) {
-	panic(fmt.Errorf("not implemented: GetListByStatus - getListByStatus"))
+	MongoUserID, ok := ctx.Value(middleware.MongoIDkey).(bson.ObjectID)
+	if !ok {
+		return nil, errors.New("user not authenticated or invalid ID")
+	}
+
+	var domainStatus list.MediaListStatus
+
+	if mediaListStatus != nil {
+		domainStatus = list.MediaListStatus(*mediaListStatus)
+	} else {
+		domainStatus = list.StatusPLANNING
+	}
+
+	domainLists, err := r.ListService.GetListByStatus(ctx, MongoUserID, domainStatus)
+	if err != nil {
+		return nil, err
+	}
+
+	return MapDomainToGraphql(domainLists), nil
 }
