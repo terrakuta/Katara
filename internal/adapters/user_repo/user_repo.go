@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
@@ -41,7 +40,7 @@ func (s *UserRepo) GetUserByEmail(ctx context.Context, email string) (*user.User
 
 }
 
-func (s *UserRepo) GetUserByID(ctx context.Context, id primitive.ObjectID) (*user.User, error) {
+func (s *UserRepo) GetUserByID(ctx context.Context, id bson.ObjectID) (*user.User, error) {
 	var user documents.UserDocument
 	err := s.db.FindOne(ctx, bson.M{"_id": id}).Decode(&user)
 
@@ -75,7 +74,7 @@ func (s *UserRepo) CreateUser(ctx context.Context, name string, email string, pa
 	return converted, nil
 }
 
-func (s *UserRepo) UpdateAvatar(ctx context.Context, mongoID primitive.ObjectID, newAvatar user.UserAvatar) (*user.User, error) {
+func (s *UserRepo) UpdateAvatar(ctx context.Context, mongoID bson.ObjectID, newAvatar user.UserAvatar) (*user.User, error) {
 	update := bson.M{"$set": bson.M{"user_avatar": newAvatar}}
 	_, err := s.db.UpdateOne(ctx, bson.M{"_id": mongoID}, update)
 
@@ -102,7 +101,7 @@ func (s *UserRepo) UpdateAvatar(ctx context.Context, mongoID primitive.ObjectID,
 	return convertedUser, err
 }
 
-func (s *UserRepo) UpdateEmail(ctx context.Context, mongoID primitive.ObjectID, newEmail string) (*user.User, error) {
+func (s *UserRepo) UpdateEmail(ctx context.Context, mongoID bson.ObjectID, newEmail string) (*user.User, error) {
 	update := bson.M{"$set": bson.M{"user_email": newEmail}}
 	_, err := s.db.UpdateOne(ctx, bson.M{"_id": mongoID}, update)
 
@@ -130,7 +129,7 @@ func (s *UserRepo) UpdateEmail(ctx context.Context, mongoID primitive.ObjectID, 
 
 }
 
-func (s *UserRepo) UpdatePassword(ctx context.Context, mongoID primitive.ObjectID, hashedPassword string) (*user.User, error) {
+func (s *UserRepo) UpdatePassword(ctx context.Context, mongoID bson.ObjectID, hashedPassword string) (*user.User, error) {
 	update := bson.M{"$set": bson.M{"user_password": hashedPassword}}
 	_, err := s.db.UpdateOne(ctx, bson.M{"_id": mongoID}, update)
 
@@ -157,7 +156,7 @@ func (s *UserRepo) UpdatePassword(ctx context.Context, mongoID primitive.ObjectI
 	return convertedUser, err
 }
 
-func (s *UserRepo) UpdateBannerImage(ctx context.Context, mongoID primitive.ObjectID, newBannerImage string) (*user.User, error) {
+func (s *UserRepo) UpdateBannerImage(ctx context.Context, mongoID bson.ObjectID, newBannerImage string) (*user.User, error) {
 	update := bson.M{"$set": bson.M{"user_banner_image": newBannerImage}}
 	_, err := s.db.UpdateOne(ctx, bson.M{"_id": mongoID}, update)
 
@@ -184,7 +183,7 @@ func (s *UserRepo) UpdateBannerImage(ctx context.Context, mongoID primitive.Obje
 	return convertedUser, err
 }
 
-func (s *UserRepo) UpdateAbout(ctx context.Context, mongoID primitive.ObjectID, newAbout string) (*user.User, error) {
+func (s *UserRepo) UpdateAbout(ctx context.Context, mongoID bson.ObjectID, newAbout string) (*user.User, error) {
 	update := bson.M{"$set": bson.M{"user_about": newAbout}}
 	_, err := s.db.UpdateOne(ctx, bson.M{"_id": mongoID}, update)
 

@@ -52,7 +52,7 @@ func (s *AnimeRepo) UpsertAnime(ctx context.Context, a *anime.Anime) error {
 	_, err := s.db.UpdateOne(
 		ctx,
 		bson.M{"anilist_id": doc.AniListID},
-		bson.M{"$set": doc},
+		bson.M{"$setOnInsert": doc},
 		opts,
 	)
 	return err
@@ -66,10 +66,14 @@ func (s *AnimeRepo) GetAnimeWithFilters(ctx context.Context, animeFilter anime.A
 		sort = bson.D{{"anime_trending", -1}}
 	case anime.SortPopularityDesc:
 		sort = bson.D{{"anime_popularity", -1}}
+	case anime.SortScoreDesc:
+		sort = bson.D{{"anime_average_score", -1}}
 	}
 
 	opts := options.Find()
-	opts.SetSort(sort)
+	if sort != nil {
+		opts.SetSort(sort)
+	}
 
 	filter := bson.M{}
 
@@ -91,6 +95,10 @@ func (s *AnimeRepo) GetAnimeWithFilters(ctx context.Context, animeFilter anime.A
 
 	if animeFilter.Page < 1 {
 		animeFilter.Page = 1
+	}
+
+	if animeFilter.PerPage < 1 {
+		animeFilter.PerPage = 20
 	}
 
 	opts.SetLimit(int64(animeFilter.PerPage))

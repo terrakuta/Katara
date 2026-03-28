@@ -13,5 +13,5 @@ type AnimeRepository interface {
 }
 
 type AnimeProvider interface {
-	FetchAll(ctx context.Context) ([]Anime, error)
+	FetchAll(ctx context.Context, onBatch func([]Anime) error) error
 }

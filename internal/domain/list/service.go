@@ -2,6 +2,7 @@ package list
 
 import (
 	"context"
+	"log"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
@@ -10,11 +11,15 @@ type ListService struct {
 	repo ListRepository
 }
 
-func (s *ListService) AddList(ctx context.Context, MongoUserID bson.ObjectID, AniListID int, mediaListStatus MediaListStatus, Score float64, Progress int, Repeat int, Private bool, Notes string, StartedAt FuzzyDate, FinishedAt FuzzyDate) error {
-	if err := s.repo.AddList(ctx, MongoUserID, AniListID, mediaListStatus, Score, Progress, Repeat, Private, Notes, StartedAt, FinishedAt); err != nil {
+func NewListService(repo ListRepository) *ListService {
+	log.Printf("NewListService called, repo = %v", repo)
+	return &ListService{repo: repo}
+}
+
+func (s *ListService) AddList(ctx context.Context, userID bson.ObjectID, params List) error {
+	if err := s.repo.AddList(ctx, userID, params); err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -27,13 +32,14 @@ func (s *ListService) UpdateList(ctx context.Context, userID bson.ObjectID, list
 	return nil
 }
 
-func (s *ListService) RemoveList(ctx context.Context, userID bson.ObjectID, AniListID int) error {
+func (s *ListService) RemoveList(ctx context.Context, userID bson.ObjectID, AniListID int) (bool, error) {
 
-	if err := s.repo.RemoveList(ctx, userID, AniListID); err != nil {
-		return err
+	removed, err := s.repo.RemoveList(ctx, userID, AniListID)
+	if err != nil {
+		return false, err
 	}
 
-	return nil
+	return removed, nil
 }
 
 func (s *ListService) GetAllLists(ctx context.Context, userID bson.ObjectID, mediaListStatus []MediaListStatus) ([]List, error) {

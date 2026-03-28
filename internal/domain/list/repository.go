@@ -9,7 +9,7 @@ import (
 type ListRepository interface {
 	GetAllLists(ctx context.Context, userID bson.ObjectID, mediaListStatus []MediaListStatus) ([]List, error)
 	GetListByStatus(ctx context.Context, userID bson.ObjectID, mediaListStatus MediaListStatus) ([]List, error)
-	AddList(ctx context.Context, MongoUserID bson.ObjectID, AniListID int, mediaListStatus MediaListStatus, Score float64, Progress int, Repeat int, Private bool, Notes string, StartedAt FuzzyDate, FinishedAt FuzzyDate) error
+	AddList(ctx context.Context, userID bson.ObjectID, params List) error
 	UpdateList(ctx context.Context, userID bson.ObjectID, list List) error
-	RemoveList(ctx context.Context, userID bson.ObjectID, AniListID int) error
+	RemoveList(ctx context.Context, userID bson.ObjectID, AniListID int) (bool, error)
 }

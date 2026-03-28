@@ -4,10 +4,12 @@ import (
 	"Katara/internal/adapters/documents"
 	"Katara/internal/domain/list"
 	"context"
+	"fmt"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 type ListsRepo struct {
@@ -51,7 +53,7 @@ func (s *ListsRepo) GetAllLists(ctx context.Context, userID bson.ObjectID, media
 }
 
 func (s *ListsRepo) GetListByStatus(ctx context.Context, userID bson.ObjectID, mediaListStatus list.MediaListStatus) ([]list.List, error) {
-	cursor, err := s.db.Find(ctx, bson.M{"list_user_id": userID, "list_status": mediaListStatus})
+	cursor, err := s.db.Find(ctx, bson.M{"user_id": userID, "list_status": mediaListStatus})
 	if err != nil {
 		return nil, err
 	}
@@ -71,29 +73,22 @@ func (s *ListsRepo) GetListByStatus(ctx context.Context, userID bson.ObjectID, m
 	return result, err
 }
 
-func (s *ListsRepo) AddList(ctx context.Context, MongoUserID bson.ObjectID, AniListID int, mediaListStatus list.MediaListStatus, Score float64, Progress int, Repeat int, Private *bool, Notes string, StartedAt documents.FuzzyDateDocument, FinishedAt documents.FuzzyDateDocument) error {
-	doc := documents.ListDocument{
-		MongoUserID: MongoUserID,
-		AniListID:   AniListID,
-		Status:      mediaListStatus,
-		Score:       Score,
-		Progress:    Progress,
-		Repeat:      Repeat,
-		Private:     Private,
-		Notes:       Notes,
-		StartedAt:   StartedAt,
-		FinishedAt:  FinishedAt,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+func (s *ListsRepo) AddList(ctx context.Context, userID bson.ObjectID, params list.List) error {
+	doc := documents.FromDomainList(params, userID)
+
+	filter := bson.D{
+		{Key: "anilist_id", Value: doc.AniListID},
+		{Key: "user_id", Value: doc.MongoUserID},
 	}
 
-	_, err := s.db.InsertOne(ctx, doc)
+	opts := options.Replace().SetUpsert(true)
 
+	_, err := s.db.ReplaceOne(ctx, filter, doc, opts)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to upsert list: %w", err)
 	}
 
-	return err
+	return nil
 }
 
 func (s *ListsRepo) UpdateList(ctx context.Context, userID bson.ObjectID, list list.List) error {
@@ -142,17 +137,17 @@ func (s *ListsRepo) UpdateList(ctx context.Context, userID bson.ObjectID, list l
 	return nil
 }
 
-func (s *ListsRepo) RemoveList(ctx context.Context, userID bson.ObjectID, AniListID int) error {
+func (s *ListsRepo) RemoveList(ctx context.Context, userID bson.ObjectID, AniListID int) (bool, error) {
 	filter := bson.M{
 		"anilist_id": AniListID,
 		"user_id":    userID,
 	}
 
-	_, err := s.db.DeleteOne(ctx, filter)
+	removed, err := s.db.DeleteOne(ctx, filter)
 
 	if err != nil {
-		return err
+		return false, err
 	}
 
-	return nil
+	return removed.DeletedCount > 0, err
 }

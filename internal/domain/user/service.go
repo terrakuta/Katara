@@ -1,29 +1,53 @@
 package user
 
 import (
+	"Katara/internal/adapters/redis"
 	"context"
 	"errors"
+	"log"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type UserService struct {
-	repo UserRepository
+	repo        UserRepository
+	sessionRepo redis.SessionRepo
 }
 
-func NewUserService(repo UserRepository) *UserService {
-	return &UserService{repo: repo}
+func NewUserService(repo UserRepository, sessionRepo redis.SessionRepo) *UserService {
+	return &UserService{repo: repo, sessionRepo: sessionRepo}
 }
 
-func (s *UserService) Login(ctx context.Context, email string, password string) (*User, error) {
+func (s *UserService) Login(ctx context.Context, email string, password string) (*User, string, error) {
 	user, err := s.repo.GetUserByEmail(ctx, email)
 
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
+
+	if err != nil {
+		return nil, "", err
+	}
+
+	sessionID, err := s.sessionRepo.CreateSession(ctx, user.MongoUserID)
+	if err != nil {
+		log.Printf("CreateSession error: %v", err)
+		return nil, "", err
+	}
+	log.Printf("Session created: %s", sessionID)
+
+	if err != nil {
+		return nil, sessionID, err
+	}
+
+	return user, sessionID, nil
+}
+
+func (s *UserService) GetUserByID(ctx context.Context, id bson.ObjectID) (*User, error) {
+	user, err := s.repo.GetUserByID(ctx, id)
 
 	if err != nil {
 		return nil, err
