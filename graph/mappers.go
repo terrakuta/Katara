@@ -5,6 +5,8 @@ import (
 	"Katara/internal/domain/anime"
 	"Katara/internal/domain/list"
 	"Katara/internal/domain/user"
+
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 func toGraphqlUser(d *user.User) *model.User {
@@ -21,6 +23,85 @@ func toGraphqlUser(d *user.User) *model.User {
 		UpdatedAt:   d.UpdatedAt,
 	}
 }
+
+func MapDomainToGraphql(domainLists []list.List) []*model.List {
+	result := make([]*model.List, len(domainLists))
+
+	for i, d := range domainLists {
+		score := d.Score
+		progress := int32(d.Progress)
+		repeat := int32(d.Repeat)
+		priority := int32(d.Priority)
+		notes := d.Notes
+
+		private := false
+		if d.Private != nil {
+			private = *d.Private
+		}
+
+		result[i] = &model.List{
+			AniListID: int32(d.AniListID),
+			Status:    model.MediaListStatus(d.Status),
+			Score:     &score,
+			Progress:  &progress,
+			Repeat:    &repeat,
+			Priority:  &priority,
+			Private:   private,
+			Notes:     &notes,
+			StartedAt: &model.FuzzyDate{
+				Year:  int32(d.StartedAt.Year),
+				Month: int32(d.StartedAt.Month),
+				Day:   int32(d.StartedAt.Day),
+			},
+			FinishedAt: &model.FuzzyDate{
+				Year:  int32(d.FinishedAt.Year),
+				Month: int32(d.FinishedAt.Month),
+				Day:   int32(d.FinishedAt.Day),
+			},
+		}
+	}
+	return result
+}
+
+func MapSliceDomainToGraphql(domainLists []list.List) []*model.List {
+	result := make([]*model.List, len(domainLists))
+
+	for i, d := range domainLists {
+		score := d.Score
+		progress := int32(d.Progress)
+		repeat := int32(d.Repeat)
+		priority := int32(d.Priority)
+		notes := d.Notes
+
+		private := false
+		if d.Private != nil {
+			private = *d.Private
+		}
+
+		result[i] = &model.List{
+			AniListID: int32(d.AniListID),
+			Status:    model.MediaListStatus(d.Status),
+			Score:     &score,
+			Progress:  &progress,
+			Repeat:    &repeat,
+			Priority:  &priority,
+			Private:   private,
+			Notes:     &notes,
+			StartedAt: &model.FuzzyDate{
+				Year:  int32(d.StartedAt.Year),
+				Month: int32(d.StartedAt.Month),
+				Day:   int32(d.StartedAt.Day),
+			},
+			FinishedAt: &model.FuzzyDate{
+				Year:  int32(d.FinishedAt.Year),
+				Month: int32(d.FinishedAt.Month),
+				Day:   int32(d.FinishedAt.Day),
+			},
+		}
+	}
+	return result
+}
+
 func fromGraphqlUserAvatar(d *model.UserAvatarInput) user.UserAvatar {
 	result := user.UserAvatar{}
 	if d.Large != nil {
@@ -32,36 +113,44 @@ func fromGraphqlUserAvatar(d *model.UserAvatarInput) user.UserAvatar {
 	return result
 }
 
-func fromAddListInput(d model.AddListInput) (int, list.MediaListStatus, float64, int, int, bool, string, list.FuzzyDate, list.FuzzyDate) {
-	var score float64
+func fromGraphqlAddListInput(d *model.AddListInput, mongoUserID bson.ObjectID) list.List {
+	mapDate := func(input *model.FuzzyDateInput) list.FuzzyDate {
+		if input == nil {
+			return list.FuzzyDate{}
+		}
+		return list.FuzzyDate{
+			Year:  int(input.Year),
+			Month: int(input.Month),
+			Day:   int(input.Day),
+		}
+	}
+
+	result := list.List{
+		AniListID:   int(d.AniListID),
+		MongoUserID: mongoUserID,
+		Status:      list.MediaListStatus(d.Status),
+		Private:     &d.Private,
+		StartedAt:   mapDate(d.StartedAt),
+		FinishedAt:  mapDate(d.FinishedAt),
+	}
+
 	if d.Score != nil {
-		score = *d.Score
+		result.Score = *d.Score
 	}
-	var progress int
 	if d.Progress != nil {
-		progress = int(*d.Progress)
+		result.Progress = int(*d.Progress)
 	}
-	var repeat int
 	if d.Repeat != nil {
-		repeat = int(*d.Repeat)
+		result.Repeat = int(*d.Repeat)
 	}
-	var private bool
-	if d.Private != nil {
-		private = *d.Private
+	if d.Priority != nil {
+		result.Priority = int(*d.Priority)
 	}
-	var notes string
 	if d.Notes != nil {
-		notes = *d.Notes
+		result.Notes = *d.Notes
 	}
-	var startedAt list.FuzzyDate
-	if d.StartedAt != nil {
-		startedAt = list.FuzzyDate{Year: int(d.StartedAt.Year), Month: int(d.StartedAt.Month), Day: int(d.StartedAt.Day)}
-	}
-	var finishedAt list.FuzzyDate
-	if d.FinishedAt != nil {
-		finishedAt = list.FuzzyDate{Year: int(d.FinishedAt.Year), Month: int(d.FinishedAt.Month), Day: int(d.FinishedAt.Day)}
-	}
-	return int(d.AnilistID), list.MediaListStatus(d.MediaListStatus), score, progress, repeat, private, notes, startedAt, finishedAt
+
+	return result
 }
 
 func toGraphqlAnime(d *anime.Anime) *model.Anime {

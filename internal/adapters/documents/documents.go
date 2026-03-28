@@ -90,6 +90,7 @@ type ListDocument struct {
 	CreatedAt   time.Time            `bson:"list_createdAt"`
 	UpdatedAt   time.Time            `bson:"list_updatedAt"`
 }
+
 type UserAvatarDocument struct {
 	Large  string `bson:"user_avatar_large"`
 	Medium string `bson:"user_avatar_medium"`
@@ -119,6 +120,33 @@ func (d *UserDocument) ToDomainUser() *user.User {
 		Email:     d.Email,
 		CreatedAt: d.CreatedAt,
 		UpdatedAt: d.UpdatedAt,
+	}
+}
+
+func FromDomainList(d list.List, userID bson.ObjectID) *ListDocument {
+	return &ListDocument{
+		AniListID:   d.AniListID,
+		MongoID:     d.MongoID,
+		MongoUserID: userID,
+		Status:      d.Status,
+		Score:       d.Score,
+		Progress:    d.Progress,
+		Repeat:      d.Repeat,
+		Priority:    d.Priority,
+		Private:     d.Private,
+		Notes:       d.Notes,
+		StartedAt: FuzzyDateDocument{
+			Year:  d.StartedAt.Year,
+			Month: d.StartedAt.Month,
+			Day:   d.StartedAt.Day,
+		},
+		FinishedAt: FuzzyDateDocument{
+			Year:  d.FinishedAt.Year,
+			Month: d.FinishedAt.Month,
+			Day:   d.FinishedAt.Day,
+		},
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}
 }
 
