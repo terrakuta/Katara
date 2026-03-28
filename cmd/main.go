@@ -4,12 +4,16 @@ import (
 	"Katara/graph"
 	"Katara/internal/adapters/anilist"
 	"Katara/internal/adapters/anime_repo"
+	"Katara/internal/adapters/list_repo"
+	"Katara/internal/adapters/redis"
 	"Katara/internal/adapters/user_repo"
 	"Katara/internal/config"
 	"Katara/internal/database"
 	"Katara/internal/domain/anime"
+	"Katara/internal/domain/list"
 	"Katara/internal/domain/user"
 	"Katara/internal/worker"
+	"Katara/middleware"
 	"context"
 	"fmt"
 	"log"
@@ -17,6 +21,7 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -35,7 +40,7 @@ func main() {
 		log.Fatalf("Cannot connect database")
 	}
 
-	_, err = database.RedisLoad(cfg)
+	redisDB, err := database.RedisLoad(cfg)
 	if err != nil {
 		fmt.Printf("failed to connect to redis server: %s\n", err.Error())
 	}
@@ -52,22 +57,34 @@ func main() {
 	if animeRepo == nil {
 		log.Fatalf("animeRepo is nil")
 	}
+
 	animeService := anime.NewAnimeService(animeRepo)
 
 	userRepo := user_repo.NewUserRepository(db.Database(cfg.MONGO_DB))
 	if userRepo == nil {
 		log.Fatalf("userRepo is nil")
 	}
-	userService := user.NewUserService(userRepo)
+
+	sessionRepo := redis.NewSessionRepoRepository(redisDB)
+	userService := user.NewUserService(userRepo, *sessionRepo)
+
+	listRepo := list_repo.NewListRepository(db.Database(cfg.MONGO_DB))
+	if listRepo == nil {
+		log.Fatalf("userRepo is nil")
+	}
+
+	listService := list.NewListService(listRepo)
 
 	anilistClient := anilist.NewAnilistClient()
 	w := worker.NewSyncWorker(anilistClient, animeRepo)
-	w.Start()
+	if cfg.SYNC_ENABLED {
+		w.Start()
+	}
 
 	//------------------------------------ HANDLERS
 
 	srv := handler.New(graph.NewExecutableSchema(graph.Config{
-		Resolvers: &graph.Resolver{AnimeService: animeService, UserService: userService},
+		Resolvers: &graph.Resolver{AnimeService: animeService, UserService: userService, ListService: listService},
 	}))
 	srv.AddTransport(transport.POST{})
 	srv.AddTransport(transport.GET{})
@@ -75,9 +92,25 @@ func main() {
 
 	log.Printf("animeRepo: %v", animeRepo)
 	log.Printf("animeService: %v", animeService)
+	log.Printf("listRepo: %v", listRepo)
+	log.Printf("listService: %v", listService)
 
 	r := gin.Default()
-	r.POST("/query", func(c *gin.Context) {
+	r.SetTrustedProxies(nil)
+
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:3000"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Content-Type"},
+		AllowCredentials: true,
+	}))
+
+	protected := r.Group("/")
+	protected.Use(middleware.AuthMiddleware(sessionRepo))
+
+	protected.POST("/query", func(c *gin.Context) {
+		ctx := context.WithValue(c.Request.Context(), "writer", c.Writer)
+		c.Request = c.Request.WithContext(ctx)
 		srv.ServeHTTP(c.Writer, c.Request)
 	})
 	r.GET("/playground", func(c *gin.Context) {
