@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 type SessionRepo struct {
@@ -19,7 +19,7 @@ func NewSessionRepoRepository(client *redis.Client) *SessionRepo {
 	}
 }
 
-func (s *SessionRepo) CreateSession(ctx context.Context, userID primitive.ObjectID) (string, error) {
+func (s *SessionRepo) CreateSession(ctx context.Context, userID bson.ObjectID) (string, error) {
 	sessionID := uuid.New().String()
 	value := userID.Hex()
 
@@ -31,15 +31,15 @@ func (s *SessionRepo) CreateSession(ctx context.Context, userID primitive.Object
 	return sessionID, nil
 }
 
-func (s *SessionRepo) GetSession(ctx context.Context, sessionID string) (primitive.ObjectID, error) {
+func (s *SessionRepo) GetSession(ctx context.Context, sessionID string) (bson.ObjectID, error) {
 	val, err := s.client.Get(ctx, "session:"+sessionID).Result()
 	if err != nil {
-		return primitive.ObjectID{}, err
+		return bson.ObjectID{}, err
 	}
 
-	userID, err := primitive.ObjectIDFromHex(val)
+	userID, err := bson.ObjectIDFromHex(val)
 	if err != nil {
-		return primitive.ObjectID{}, err
+		return bson.ObjectID{}, err
 	}
 
 	return userID, nil
